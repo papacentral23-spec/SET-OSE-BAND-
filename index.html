@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSE - SET BAND | Your Own SUNO</title>
+<style>body{background:#0a0a0a;color:#fff;font-family:Arial;padding:14px}h1{color:#ffd700}button{background:#ffd700;color:#000;border:0;padding:14px;border-radius:12px;font-weight:bold;width:100%;margin:6px 0}input,select{width:100%;padding:12px;border-radius:10px;background:#222;color:#fff;border:1px solid #444;margin:5px 0}.card{background:#1a1a1a;padding:12px;border-radius:12px;margin:10px 0}</style></head>
+<body>
+<h1>OSE — SET BAND</h1><p>Your Own SUNO | Phone Only | Beat Only | MIDI IN/OUT | Plays SUNO</p>
+
+<div class="card">
+<b>Type like SUNO:</b>
+<input id="prompt" value="happy afrobeats, warm pad, round bass, for Ose to sing">
+<select id="style"><option>Universal</option><option>Gospel</option><option>Afrobeats</option></select>
+<button onclick="generateOse()">✨ GENERATE OSE BEAT — Like SUNO</button>
+<p id="status">Ready. Type, Tap, Sing.</p>
+<audio id="player" controls style="width:100%"></audio>
+<button onclick="playBeat()">▶ PLAY BEAT</button><button onclick="stopBeat()">■ STOP</button>
+</div>
+
+<div class="card"><b>MIDI IN / OUT</b>
+<button onclick="initMidi()">CONNECT MIDI</button><p id="midiLog">MIDI: Tap Connect</p></div>
+
+<div class="card"><b>PLAY SUNO IN OSE</b>
+<input type="file" id="sunoFile" accept="audio/*"><audio id="sunoAudio" controls style="width:100%"></audio></div>
+
+<div class="card"><b>YOUR VOICE — No AI Voice</b>
+<button onclick="startVoice()">● RECORD YOUR VOICE</button><button onclick="stopVoice()">■ STOP</button>
+<a id="voiceLink" style="display:block;color:#ffd700"></a></div>
+
+<script>
+let ctx, timer=null, isPlaying=false, step=0, midiOutPort=null;
+let patterns={Universal:{bpm:95,kick:[0,8,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
+Gospel:{bpm:82,kick:[0,8],snare:[4,12],hat:[0,2,4,6,8,10,12,14]},
+Afrobeats:{bpm:110,kick:[0,6,10],snare:[4,12],hat:[0,2,3,6,8,10,12,14]}};
+function generateOse(){
+  let prompt=document.getElementById('prompt').value;
+  let style=document.getElementById('style').value;
+  let seed=0; for(let c of prompt) seed+=c.charCodeAt(0);
+  let p=JSON.parse(JSON.stringify(patterns[style]));
+  if(seed%2===0) p.kick.push(6);
+  if(seed%3===0) p.hat.push(3);
+  if(prompt.toLowerCase().includes('sad')) p.bpm-=10;
+  if(prompt.toLowerCase().includes('happy')) p.bpm+=5;
+  if(prompt.toLowerCase().includes('piano')) p.hat=[0,4,8,12];
+  window.oseBeat=p;
+  document.getElementById('status').innerText=`OSE Brain: Made NEW beat for "${prompt}" | ${style} | ${p.bpm} BPM | Beat Only - You Sing`;
+  playBeat();
+}
+function playTone(f,d){if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();let o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.value=0.25;o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+d);}
+function playDrum(k){if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();let o=ctx.createOscillator(),g=ctx.createGain();if(k==='kick'){o.frequency.setValueAtTime(120,ctx.currentTime);o.frequency.exponentialRampToValueAtTime(40,ctx.currentTime+0.15);}if(k==='hat'){o.frequency.value=6000;o.type='square';}g.gain.value=0.25;o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+0.12);}
+function playBeat(){if(isPlaying)return;if(!window.oseBeat)generateOse();isPlaying=true;step=0;let b=window.oseBeat;let st=60/b.bpm/4*1000;timer=setInterval(()=>{if(b.kick.includes(step))playDrum('kick');if(b.snare.includes(step))playDrum('snare');if(b.hat.includes(step))playDrum('hat');if(step%4===0)playTone(55,0.2);if(midiOutPort){if(b.kick.includes(step))midiOutPort.send([0x99,36,100]);}step=(step+1)%16;},st);}
+function stopBeat(){isPlaying=false;clearInterval(timer);}
+async function initMidi(){try{let m=await navigator.requestMIDIAccess();if(m.outputs.size>0)midiOutPort=[...m.outputs.values()][0];document.getElementById('midiLog').innerText='MIDI Connected: '+m.inputs.size+' IN, '+m.outputs.size+' OUT';}catch(e){document.getElementById('midiLog').innerText='MIDI needs Chrome + Allow MIDI';}}
+document.getElementById('sunoFile').addEventListener('change',e=>{let f=e.target.files[0];let a=document.getElementById('sunoAudio');a.src=URL.createObjectURL(f);a.play();document.getElementById('status').innerText='Playing SUNO file inside OSE';});
+let vr=null,vc=[];async function startVoice(){let s=await navigator.mediaDevices.getUserMedia({audio:true});vr=new MediaRecorder(s);vc=[];vr.ondataavailable=e=>vc.push(e.data);vr.onstop=()=>{let b=new Blob(vc,{type:'audio/webm'});let l=document.getElementById('voiceLink');l.href=URL.createObjectURL(b);l.innerText='Download Your Voice - OSE';l.download='ose-voice.webm';};vr.start();}
+function stopVoice(){if(vr)vr.stop();}
+</script></body></html>
